@@ -10,6 +10,9 @@
     let map;
     let stations = [];
     let mapViewChanged = 0;
+    let departures = new Map();
+    let arrivals = new Map();
+    let trips = [];
 
     async function initMap() {
         map = new mapboxgl.Map({
@@ -84,22 +87,32 @@
             const csvUrl = 'https://vis-society.github.io/labs/8/data/bluebikes-traffic-2024-03.csv';
             const data = await d3.csv(csvUrl);
             
-            trips = data.map(trip => {
-                return {
-                    id: trip.ride_id,
-                    name: trip.NAME,
-                    started_at: new Date(trip.started_at),
-                    ended_at: new Date(trip.ended_at),
-                    start_station_id: trip.start_station_id,
-                    end_station_id: trip.end_station_id
-                };
+            trips = data.map(trip => ({
+                id: trip.ride_id,
+                name: trip.NAME,
+                started_at: new Date(trip.started_at),
+                ended_at: new Date(trip.ended_at),
+                start_station_id: trip.start_station_id,
+                end_station_id: trip.end_station_id
+            }));
+
+            departures = d3.rollup(trips, v => v.length, d => d.start_station_id);
+            arrivals = d3.rollup(trips, v => v.length, d => d.end_station_id);
+            stations = stations.map(station => {
+                let id = station.id;
+                station.arrivals = arrivals.get(id) ?? 0;
+                station.departures = departures.get(id) ?? 0;
+                station.totalTraffic = station.arrivals + station.departures;
+                return station;
             });
-            
-            // console.log('Trips loaded:', trips.length);
         } catch (error) {
-            console.error('Error loading station data:', error);
+            console.error('Error loading demand data:', error);
         }
     }
+
+    $: radiusScale = d3.scaleSqrt()
+        .domain([0, d3.max(stations, d => d.totalTraffic) || 0])
+        .range([0, 25]);
 
     onMount(() => {
         initMap();
@@ -114,7 +127,7 @@
     {#key mapViewChanged}
         <svg>
             {#each stations as station}
-                <circle cx={ getCoords(station).cx } cy={ getCoords(station).cy } r="5" fill="steelblue" />
+                <circle cx={ getCoords(station).cx } cy={ getCoords(station).cy } r={radiusScale(station.totalTraffic)} fill="steelblue" />
             {/each}
         </svg>
     {/key}
@@ -134,5 +147,11 @@
         width: 100%;
         height: 100%;
         pointer-events: none
+    }
+
+    #map svg circle {
+        fill-opacity: 0.6;
+        stroke: white;
+        stroke-width: 1;
     }
 </style>
