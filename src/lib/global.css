@@ -8,3 +8,19 @@ body {
 	margin: auto;
 	padding: 1em;
 }
+
+header {
+    display: flex;
+    flex-direction: column; /* Deixa os elementos um embaixo do outro */
+    gap: 1em;
+    width: 100%;
+}
+
+label {
+    width: 100%; /* Faz o label ocupar toda a largura */
+}
+
+label input[type="range"] {
+    width: 100%; /* Faz o input range ocupar toda a largura */
+    box-sizing: border-box;
+}
